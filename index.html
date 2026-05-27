@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>14.1 TOUCH PRO FINAL</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: Arial;
+  background: #ddd;
+  touch-action: manipulation;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* Header */
+#header {
+  background: #1f3b73;
+  color: white;
+  text-align: center;
+  padding: 1vmin;
+  position: relative;
+  font-size: 4vmin;
+}
+
+#clock {
+  position: absolute;
+  right: 2vmin;
+  top: 1vmin;
+  font-size: 3vmin;
+}
+
+/* Ziel */
+#target {
+  text-align: center;
+  font-size: 3vmin;
+  font-weight: bold;
+}
+
+/* Spieler */
+#players {
+  display: flex;
+  justify-content: space-between;
+  padding: 1vmin 4vmin;
+}
+
+.player-box {
+  flex: 1;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 6vmin;
+  font-weight: bold;
+}
+
+.player-left { color: red; }
+.player-right { color: blue; }
+
+/* aktiver Spieler */
+.active {
+  background: rgba(0,255,0,0.3);
+  border-radius: 1vmin;
+  padding: 0.3vmin 1vmin;
+}
+
+.edit-btn {
+  font-size: 2.5vmin;
+  margin-top: 0.5vmin;
+}
+
+/* ✅ Stats (jetzt korrekt klein) */
+.stats {
+  font-size: 2.2vmin;
+  margin-top: 0.8vmin;
+  font-weight: normal;
+  color: #333;
+  line-height: 1.4;
+}
+
+/* ✅ Scores wie index.html */
+#scores {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+}
+
+.score {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 30vmin;
+  font-weight: bold;
+}
+
+#s1 { color: red; }
+#s2 { color: blue; }
+
+#colon {
+  font-size: 12vmin;
+  font-weight: bold;
+}
+
+/* Kugeln */
+#balls {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  padding: 1vmin;
+}
+
+.ball {
+  width: 9vmin;
+  height: 9vmin;
+  margin: 0.8vmin;
+  border-radius: 50%;
+  border: 2px solid black;
+  font-size: 3vmin;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.b1{background:yellow;}
+.b2{background:blue;color:white;}
+.b3{background:red;color:white;}
+.b4{background:purple;color:white;}
+.b5{background:orange;}
+.b6{background:green;color:white;}
+.b7{background:brown;color:white;}
+.b8{background:black;color:white;}
+.b9{background:yellow;}
+.b10{background:blue;}
+.b11{background:red;}
+.b12{background:purple;}
+.b13{background:orange;}
+.b14{background:green;}
+.b15{background:brown;}
+
+button {
+  font-size: 3vmin;
+  padding: 1vmin 2vmin;
+  margin: 0.5vmin;
+}
+
+/* deaktiviert */
+.disabled {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+/* Portrait Anpassung */
+@media (orientation: portrait) {
+  .score { font-size: 26vmin; }
+  #colon { font-size: 11vmin; }
+
+  .ball {
+    width: 11vmin;
+    height: 11vmin;
+    font-size: 4vmin;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div id="app">
+
+<div id="header">
+  14.1 SCOREBOARD
+  <div id="clock"></div>
+</div>
+
+<div id="target">
+  Ziel: <span id="targetScore">40</span> /
+  <span id="targetInn">20</span> Aufnahmen
+  <button onclick="setTarget()">⚙️</button>
+</div>
+
+<div id="players">
+  <div class="player-box">
+    <div id="p1" class="player-left">Spieler 1</div>
+    <button class="edit-btn" onclick="changeName(1)">✏️</button>
+
+    <div class="stats">
+      Run: <span id="run1">0</span> |
+      High: <span id="high1">0</span><br>
+      Avg: <span id="avg1">0.00</span> |
+      Aufnahmen: <span id="inn1">0</span>
+    </div>
+  </div>
+
+  <div class="player-box">
+    <div id="p2" class="player-right">Spieler 2</div>
+    <button class="edit-btn" onclick="changeName(2)">✏️</button>
+
+    <div class="stats">
+      Run: <span id="run2">0</span> |
+      High: <span id="high2">0</span><br>
+      Avg: <span id="avg2">0.00</span> |
+      Aufnahmen: <span id="inn2">0</span>
+    </div>
+  </div>
+</div>
+
+<div id="scores">
+  <div id="s1" class="score">0</div>
+  <div id="colon">:</div>
+  <div id="s2" class="score">0</div>
+</div>
+
+<div id="balls"></div>
+
+<div style="text-align:center;">
+  <button onclick="undo()">↩️ Undo</button>
+  <button onclick="nextTurn()">🔄 Aufnahme Ende</button>
+  <button onclick="swap()">↔ Seitenwechsel</button>
+  <button onclick="newGame()">🔄 Neues Match</button>
+</div>
+
+</div>
+
+<script>
+let history=[];
+
+let state={
+  player1:"Spieler 1",
+  player2:"Spieler 2",
+  s1:0,s2:0,
+  run1:0,run2:0,
+  high1:0,high2:0,
+  inn1:0,inn2:0,
+  target:40,
+  targetInn:20,
+  turn:1,
+  ballsLeft:15,
+  locked:false
+};
+
+/* Undo */
+function pushState(){ history.push(JSON.stringify(state)); }
+function undo(){
+  if(history.length===0) return;
+  state=JSON.parse(history.pop());
+  render();
+}
+
+/* Treffer */
+function hit(n){
+  if(state.locked) return;
+  pushState();
+
+  let gained=state.ballsLeft-n;
+
+  if(state.turn===1){
+    state.s1+=gained;
+    state.run1+=gained;
+    state.run2=0;
+    if(state.run1>state.high1) state.high1=state.run1;
+  }else{
+    state.s2+=gained;
+    state.run2+=gained;
+    state.run1=0;
+    if(state.run2>state.high2) state.high2=state.run2;
+  }
+
+  if(n===1){
+    state.ballsLeft=15;
+  } else {
+    state.ballsLeft=n;
+    nextTurnInternal();
+  }
+
+  checkEnd();
+  render();
+}
+
+/* Turn */
+function nextTurnInternal(){
+  if(state.turn===1) state.inn1++;
+  else state.inn2++;
+
+  state.run1=0;
+  state.run2=0;
+  state.turn = state.turn===1?2:1;
+}
+
+function nextTurn(){
+  if(state.locked) return;
+  pushState();
+  nextTurnInternal();
+  checkEnd();
+  render();
+}
+
+/* Spielende */
+function checkEnd(){
+  if(
+    state.s1>=state.target ||
+    state.s2>=state.target ||
+    state.inn1>=state.targetInn ||
+    state.inn2>=state.targetInn
+  ){
+    state.locked=true;
+    alert("Spiel beendet");
+  }
+}
+
+/* Kugeln */
+function createBalls(){
+  let b=document.getElementById("balls");
+  b.innerHTML="";
+
+  for(let i=1;i<=15;i++){
+    if(i>state.ballsLeft) continue;
+
+    let btn=document.createElement("button");
+    btn.textContent=i;
+    btn.className="ball b"+i;
+    btn.onclick=()=>hit(i);
+    b.appendChild(btn);
+  }
+
+  if(state.locked) b.classList.add("disabled");
+  else b.classList.remove("disabled");
+}
+
+/* Active */
+function updateActive(){
+  p1.classList.remove("active");
+  p2.classList.remove("active");
+  if(state.turn===1) p1.classList.add("active");
+  else p2.classList.add("active");
+}
+
+/* Spieler */
+function changeName(p){
+  if(state.locked) return;
+  let n=prompt("Neuer Name:");
+  if(!n) return;
+  if(p===1) state.player1=n;
+  else state.player2=n;
+  render();
+}
+
+/* Ziel */
+function setTarget(){
+  if(state.locked) return;
+  let t=prompt("Zielpunkte:",state.target);
+  let i=prompt("Aufnahmen:",state.targetInn);
+  if(t) state.target=parseInt(t);
+  if(i) state.targetInn=parseInt(i);
+  render();
+}
+
+/* Neues Spiel */
+function newGame(){
+  if(!confirm("Neues Match starten?")) return;
+
+  state={
+    ...state,
+    s1:0,s2:0,
+    run1:0,run2:0,
+    high1:0,high2:0,
+    inn1:0,inn2:0,
+    ballsLeft:15,
+    turn:1,
+    locked:false
+  };
+
+  history=[];
+
+  if(confirm("Spieler neu eingeben?")){
+    state.player1 = prompt("Name Spieler Rot:",state.player1)||state.player1;
+    state.player2 = prompt("Name Spieler Blau:",state.player2)||state.player2;
+  }
+
+  render();
+}
+
+/* Seitenwechsel */
+function swap(){
+  if(state.locked) return;
+
+  pushState();
+
+  [state.player1,state.player2] = [state.player2,state.player1];
+  [state.s1,state.s2] = [state.s2,state.s1];
+  [state.run1,state.run2] = [state.run2,state.run1];
+  [state.high1,state.high2] = [state.high2,state.high1];
+  [state.inn1,state.inn2] = [state.inn2,state.inn1];
+
+  state.turn = state.turn===1?2:1;
+
+  render();
+}
+
+/* Render */
+function render(){
+  p1.textContent=state.player1;
+  p2.textContent=state.player2;
+
+  s1.textContent=state.s1;
+  s2.textContent=state.s2;
+
+  run1.textContent=state.run1;
+  run2.textContent=state.run2;
+
+  high1.textContent=state.high1;
+  high2.textContent=state.high2;
+
+  inn1.textContent=state.inn1;
+  inn2.textContent=state.inn2;
+
+  avg1.textContent=(state.s1/(state.inn1||1)).toFixed(2);
+  avg2.textContent=(state.s2/(state.inn2||1)).toFixed(2);
+
+  targetScore.textContent=state.target;
+  targetInn.textContent=state.targetInn;
+
+  updateActive();
+  createBalls();
+}
+
+/* Uhr */
+setInterval(()=>{
+  clock.textContent=new Date().toLocaleTimeString("de-DE",
+    {hour:"2-digit",minute:"2-digit"});
+},1000);
+
+render();
+</script>
+
+</body>
+</html>
