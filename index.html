@@ -450,7 +450,8 @@
       });
     };
 
-    window.promptModal = function (msg, vorgabe) {
+    window.promptModal = function (msg, vorgabe, opts) {
+      opts = opts || {};
       return new Promise((resolve) => {
         const ov = buildOverlay(TITLE +
           '<div class="app-dlg-msg"></div>' +
@@ -461,6 +462,15 @@
         ov.querySelector('.app-dlg-msg').textContent = String(msg == null ? '' : msg);
         const inp = ov.querySelector('.app-dlg-input');
         inp.value = vorgabe == null ? '' : String(vorgabe);
+        if (opts.maxLength) inp.maxLength = opts.maxLength;          // Eingabefeld auf N Zeichen begrenzen
+        if (opts.numeric) {                                          // nur Ziffern zulassen
+          inp.inputMode = 'numeric';
+          inp.addEventListener('input', () => {
+            let v = inp.value.replace(/\D/g, '');
+            if (opts.maxLength) v = v.slice(0, opts.maxLength);
+            inp.value = v;
+          });
+        }
         const done = (val) => { ov.remove(); document.removeEventListener('keydown', onKey); resolve(val); };
         function onKey(e) { if (e.key === 'Escape') done(null); }
         ov.querySelector('.app-dlg-ok').addEventListener('click', () => done(inp.value));
@@ -485,7 +495,8 @@
   </div>
 
   <div id="target">
-    Ziel: <span id="targetScore">60</span> Punkte
+    Ziel: <span id="targetScore">60</span> Punkte /
+    <span id="targetInn">20</span> Aufnahmen
     <button id="targetBtn" type="button" onclick="setTarget()">⚙️</button>
   </div>
 
@@ -561,8 +572,7 @@
       <span><b class="pz-f">//</b> 2. Foul</span>
       <span><b class="pz-f3">3F</b> drei Fouls (−15)</span>
       <span><b>−2</b> Eröffnungsfoul</span>
-      <span><b>HS</b> Höchstserie</span>
-      <span class="pz-hs">HS-Aufnahme</span>
+      <span><b>HS</b> = Höchstserie <span class="pz-hs">(gelb markiert)</span></span>
       <span><b style="color:#1f3b73;">▶</b> laufende Aufnahme</span>
     </div>
   </div>
@@ -572,7 +582,7 @@
 <div id="help-overlay">
   <div id="help-card">
     <div id="help-head">
-      <div id="help-title">❓ Bedienung – 14.1 Board</div>
+      <div id="help-title">❓ Bedienung – 14.1 Board &amp; Aufbauhilfe</div>
       <button id="help-close" type="button" aria-label="Schließen">✕</button>
     </div>
     <div id="help-body">
@@ -594,6 +604,102 @@
         <li><b>📋 Protokoll</b> zeigt den Spielzettel (F | Pkt. | Gesamt je Spieler) und lässt sich drucken.</li>
         <li><b>⚙️</b> ändert die Zielpunkte · <b>✏️</b> die Namen · <b>🔄 Neues Match</b> startet neu.</li>
       </ul>
+
+      <h3 style="border-top:1px solid #eee;padding-top:14px;margin-top:16px;">📐 Aufbauhilfe – Wiederaufbau nach 14 Bällen</h3>
+      <p>Sind 14 Bälle versenkt, werden sie wieder zum Dreieck aufgebaut – die <b>vorderste Position (Fußpunkt) bleibt frei</b>. Die <b>15. Kugel</b> (der Break-Ball) und die <b>Weiße</b> bleiben liegen. Stehen sie dem Aufbau im Weg, werden sie nach festen Regeln verlegt:</p>
+
+      <div style="font-size:12px;color:#666;margin:10px 0 4px;font-weight:bold;">Orientierung am Tisch</div>
+      <svg viewBox="0 0 360 196" width="100%" role="img" aria-label="Tisch mit Kopffeld, Kopflinie, Kopfpunkt, Mittelpunkt, Fußpunkt und Aufbaudreieck">
+        <rect x="4" y="4" width="352" height="188" rx="12" fill="#5a3618"/>
+        <rect x="18" y="18" width="324" height="160" rx="6" fill="#1f7a4d"/>
+        <circle cx="18" cy="18" r="7" fill="#141414"/><circle cx="180" cy="18" r="7" fill="#141414"/><circle cx="342" cy="18" r="7" fill="#141414"/>
+        <circle cx="18" cy="178" r="7" fill="#141414"/><circle cx="180" cy="178" r="7" fill="#141414"/><circle cx="342" cy="178" r="7" fill="#141414"/>
+        <line x1="99" y1="18" x2="99" y2="178" stroke="#eafff5" stroke-width="1" stroke-dasharray="4 3" opacity="0.7"/>
+        <polygon points="261,98 320,68 320,128" fill="rgba(255,255,255,.08)" stroke="#eafff5" stroke-width="1" stroke-dasharray="3 3" opacity="0.85"/>
+        <circle cx="261" cy="98" r="2.8" fill="#ffd27f"/>
+        <circle cx="99" cy="98" r="2.8" fill="#eafff5"/>
+        <circle cx="180" cy="98" r="2.8" fill="#eafff5"/>
+        <g font-family="Arial" font-size="10" fill="#eafff5" text-anchor="middle">
+          <text x="261" y="86">Fußpunkt</text>
+          <text x="99" y="86">Kopfpunkt</text>
+          <text x="180" y="86">Mittelpunkt</text>
+          <text x="99" y="33">Kopflinie</text>
+          <text x="56" y="160">Kopffeld</text>
+          <text x="291" y="150">Dreieck</text>
+        </g>
+      </svg>
+      <p style="font-size:12.5px;color:#555;margin:4px 0 0;"><b>Kopffeld</b> = Bereich hinter der Kopflinie; von dort wird die Weiße „aus dem Kopffeld" (Ball in Hand) gespielt.</p>
+
+      <div style="font-size:12px;color:#666;margin:16px 0 6px;font-weight:bold;">Die drei häufigen Fälle</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">
+
+        <div style="border:1px solid #e3e3e3;border-radius:8px;overflow:hidden;">
+          <svg viewBox="0 0 220 130" width="100%" role="img" aria-label="Nur die 15. Kugel steht im Weg">
+            <defs><marker id="ah1" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#ffd27f"/></marker></defs>
+            <rect x="3" y="3" width="214" height="124" rx="9" fill="#5a3618"/>
+            <rect x="14" y="14" width="192" height="102" rx="4" fill="#1f7a4d"/>
+            <circle cx="14" cy="14" r="5" fill="#141414"/><circle cx="110" cy="14" r="5" fill="#141414"/><circle cx="206" cy="14" r="5" fill="#141414"/>
+            <circle cx="14" cy="116" r="5" fill="#141414"/><circle cx="110" cy="116" r="5" fill="#141414"/><circle cx="206" cy="116" r="5" fill="#141414"/>
+            <line x1="62" y1="14" x2="62" y2="116" stroke="#eafff5" stroke-width="1" stroke-dasharray="4 3" opacity="0.6"/>
+            <polygon points="158,65 192,46 192,84" fill="none" stroke="#eafff5" stroke-width="1" stroke-dasharray="3 3" opacity="0.8"/>
+            <circle cx="62" cy="65" r="6.5" fill="rgba(122,31,31,.35)" stroke="#7a1f1f" stroke-width="1.2" stroke-dasharray="2 2"/>
+            <line x1="170" y1="64" x2="74" y2="65" stroke="#ffd27f" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#ah1)"/>
+            <circle cx="176" cy="63" r="6.5" fill="#7a1f1f" stroke="#3a0d0d" stroke-width="1"/><circle cx="176" cy="63" r="2.2" fill="#fde9c8"/>
+            <circle cx="120" cy="97" r="6.5" fill="#fff" stroke="#444" stroke-width="1"/>
+          </svg>
+          <div style="padding:8px 10px;font-size:13px;line-height:1.45;"><b>Nur die 15. Kugel</b> steht im Weg → sie kommt auf den <b>Kopfpunkt</b>. <span style="color:#666;">Ist der Kopfpunkt durch die Weiße belegt, auf den Mittelpunkt.</span></div>
+        </div>
+
+        <div style="border:1px solid #e3e3e3;border-radius:8px;overflow:hidden;">
+          <svg viewBox="0 0 220 130" width="100%" role="img" aria-label="Nur die Weiße steht im Weg">
+            <defs><marker id="ah2" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#ffd27f"/></marker></defs>
+            <rect x="3" y="3" width="214" height="124" rx="9" fill="#5a3618"/>
+            <rect x="14" y="14" width="192" height="102" rx="4" fill="#1f7a4d"/>
+            <circle cx="14" cy="14" r="5" fill="#141414"/><circle cx="110" cy="14" r="5" fill="#141414"/><circle cx="206" cy="14" r="5" fill="#141414"/>
+            <circle cx="14" cy="116" r="5" fill="#141414"/><circle cx="110" cy="116" r="5" fill="#141414"/><circle cx="206" cy="116" r="5" fill="#141414"/>
+            <line x1="62" y1="14" x2="62" y2="116" stroke="#eafff5" stroke-width="1" stroke-dasharray="4 3" opacity="0.6"/>
+            <polygon points="158,65 192,46 192,84" fill="none" stroke="#eafff5" stroke-width="1" stroke-dasharray="3 3" opacity="0.8"/>
+            <circle cx="40" cy="65" r="6.5" fill="rgba(255,255,255,.3)" stroke="#fff" stroke-width="1.2" stroke-dasharray="2 2"/>
+            <line x1="172" y1="68" x2="50" y2="65" stroke="#ffd27f" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#ah2)"/>
+            <circle cx="178" cy="68" r="6.5" fill="#fff" stroke="#444" stroke-width="1"/>
+            <circle cx="132" cy="40" r="6.5" fill="#7a1f1f" stroke="#3a0d0d" stroke-width="1"/><circle cx="132" cy="40" r="2.2" fill="#fde9c8"/>
+          </svg>
+          <div style="padding:8px 10px;font-size:13px;line-height:1.45;"><b>Nur die Weiße</b> steht im Weg (15. Kugel außerhalb des Kopffeldes) → die <b>Weiße aus dem Kopffeld</b> (Ball in Hand).</div>
+        </div>
+
+        <div style="border:1px solid #e3e3e3;border-radius:8px;overflow:hidden;">
+          <svg viewBox="0 0 220 130" width="100%" role="img" aria-label="15. Kugel und Weiße stehen beide im Weg">
+            <defs><marker id="ah3" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#ffd27f"/></marker></defs>
+            <rect x="3" y="3" width="214" height="124" rx="9" fill="#5a3618"/>
+            <rect x="14" y="14" width="192" height="102" rx="4" fill="#1f7a4d"/>
+            <circle cx="14" cy="14" r="5" fill="#141414"/><circle cx="110" cy="14" r="5" fill="#141414"/><circle cx="206" cy="14" r="5" fill="#141414"/>
+            <circle cx="14" cy="116" r="5" fill="#141414"/><circle cx="110" cy="116" r="5" fill="#141414"/><circle cx="206" cy="116" r="5" fill="#141414"/>
+            <line x1="62" y1="14" x2="62" y2="116" stroke="#eafff5" stroke-width="1" stroke-dasharray="4 3" opacity="0.6"/>
+            <polygon points="158,65 192,46 192,84" fill="rgba(255,255,255,.16)" stroke="#eafff5" stroke-width="1" stroke-dasharray="3 3" opacity="0.85"/>
+            <circle cx="166" cy="65" r="3.6" fill="#d8a32a"/><circle cx="176" cy="58" r="3.6" fill="#c0392b"/><circle cx="176" cy="72" r="3.6" fill="#2d6cb0"/>
+            <circle cx="186" cy="51" r="3.6" fill="#3b7a3b"/><circle cx="186" cy="65" r="3.6" fill="#7a1f1f"/><circle cx="186" cy="79" r="3.6" fill="#d8a32a"/>
+            <circle cx="40" cy="65" r="6.5" fill="rgba(255,255,255,.3)" stroke="#fff" stroke-width="1.2" stroke-dasharray="2 2"/>
+            <line x1="150" y1="78" x2="50" y2="66" stroke="#ffd27f" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#ah3)"/>
+            <circle cx="156" cy="80" r="6.5" fill="#fff" stroke="#444" stroke-width="1"/>
+          </svg>
+          <div style="padding:8px 10px;font-size:13px;line-height:1.45;"><b>Beide</b> stehen im Weg → <b>alle 15 Kugeln</b> neu aufbauen, die <b>Weiße aus dem Kopffeld</b>.</div>
+        </div>
+
+      </div>
+
+      <div style="font-size:12px;color:#666;margin:16px 0 4px;font-weight:bold;">Sonderfälle</div>
+      <ul>
+        <li>Liegt die <b>15. Kugel im Kopffeld</b> und die Weiße steht im Weg → die <b>Weiße kommt auf den Kopfpunkt</b> (ist dieser belegt, auf den Mittelpunkt).</li>
+        <li><b>15. und 14. Kugel zusammen versenkt</b> → <b>alle 15</b> Kugeln neu aufbauen.</li>
+        <li>Muss eine Kugel auf den <b>Kopfpunkt</b>, ist dieser aber belegt → sie kommt auf den <b>Mittelpunkt</b>.</li>
+      </ul>
+
+      <div style="margin-top:14px;font-size:12.5px;color:#666;display:flex;flex-wrap:wrap;gap:8px 16px;">
+        <span><span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:#fff;border:1px solid #444;vertical-align:-1px;"></span> Weiße</span>
+        <span><span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:#7a1f1f;vertical-align:-1px;"></span> 15. Kugel</span>
+        <span>gestrichelt = Zielposition · Pfeil = wird verlegt</span>
+      </div>
+
       <div class="hint">Diese Demo speichert den Spielstand lokal in deinem Browser (kein Server, keine Anmeldung).</div>
     </div>
   </div>
@@ -612,7 +718,7 @@
 
   function freshState() {
     return { player1:"Spieler 1", player2:"Spieler 2", s1:0, s2:0, run1:0, run2:0,
-             high1:0, high2:0, inn1:0, inn2:0, consec1:0, consec2:0, target:60, turn:1,
+             high1:0, high2:0, inn1:0, inn2:0, consec1:0, consec2:0, target:60, targetInn:20, turn:1,
              ballsLeft:15, rackNo:1, pendingRebuilds:0, phase:"break", breaker:1,
              locked:false, winnerText:"", log:[] };
   }
@@ -644,12 +750,18 @@
      =========================== */
   function checkEnd() {
     if (state.locked) return;
-    if (state.s1 < state.target && state.s2 < state.target) return;   // Ziel noch nicht erreicht
+    const pointsReached = state.s1 >= state.target || state.s2 >= state.target;
+    // Aufnahmen-Limit: BEIDE Spieler spielen ihre Aufnahmen zu Ende (nicht wer die Zahl zuerst erreicht).
+    const inningsReached = state.targetInn > 0 && state.inn1 >= state.targetInn && state.inn2 >= state.targetInn;
+    if (!pointsReached && !inningsReached) return;   // weder Punkteziel noch Aufnahmen-Limit erreicht
     state.locked = true;
-    if (state.s1 >= state.target && state.s1 >= state.s2) {
+    // Sieger = mehr Punkte; bei Erreichen des Aufnahmen-Limits ist auch Unentschieden moeglich.
+    if (state.s1 > state.s2) {
       state.winnerText = "Spiel beendet – Gewinner: " + state.player1;
-    } else {
+    } else if (state.s2 > state.s1) {
       state.winnerText = "Spiel beendet – Gewinner: " + state.player2;
+    } else {
+      state.winnerText = "Spiel beendet – Unentschieden";
     }
     save();
     render();
@@ -820,10 +932,14 @@
 
   async function setTarget() {
     if (state.locked) return;
-    const t = await promptModal("Zielpunkte:", state.target);
+    const t = await promptModal("Zielpunkte (max. 4-stellig):", state.target, { maxLength: 4, numeric: true });
     if (t === null) return;
+    const i = await promptModal("Aufnahmen-Limit (max. 3-stellig):", state.targetInn, { maxLength: 3, numeric: true });
+    if (i === null) return;
     const parsedT = parseInt(t, 10);
+    const parsedI = parseInt(i, 10);
     if (!isNaN(parsedT) && parsedT > 0) state.target = parsedT;
+    if (!isNaN(parsedI) && parsedI > 0) state.targetInn = parsedI;
     save();
     render();
   }
@@ -919,6 +1035,7 @@
     document.getElementById("avg1").textContent = (state.s1 / (state.inn1 || 1)).toFixed(1);
     document.getElementById("avg2").textContent = (state.s2 / (state.inn2 || 1)).toFixed(1);
     document.getElementById("targetScore").textContent = state.target;
+    document.getElementById("targetInn").textContent = state.targetInn;
 
     const f1 = foulInfo(state.consec1), f2 = foulInfo(state.consec2);
     const fe1 = document.getElementById("fouls1"), fe2 = document.getElementById("fouls2");
