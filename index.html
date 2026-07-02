@@ -2,7 +2,9 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no, maximum-scale=1">
 <title>14.1 Scoreboard – Standalone</title>
 
 <style>
@@ -379,6 +381,8 @@
   #log-table .pz-live .pz-no { color: #1f3b73; font-style: normal; font-weight: bold; }
   #log-table .pz-div td { background: #e9eef6; color: #1f3b73; font-size: 12px; font-weight: bold;
     border-top: 1px solid #cfd6e2; border-bottom: 1px solid #cfd6e2; }
+  #log-table .pz-rack td { border-top: 1px solid #cfd6e2; }
+  #log-table td.pz-rackmark { background: #e9eef6; color: #1f3b73; font-weight: bold; font-size: 12px; border-radius: 4px; }
   #log-table .pz-empty { color: #888; padding: 16px; }
   #log-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 8px 16px 12px;
     border-top: 1px solid #eee; font-size: 12px; color: #666; }
@@ -818,7 +822,7 @@
   function flushRebuilds() {
     while (state.pendingRebuilds > 0) {
       state.rackNo++;
-      state.log.push({ t: "rack", rackNo: state.rackNo });
+      state.log.push({ t: "rack", rackNo: state.rackNo, p: state.turn });
       state.pendingRebuilds--;
     }
   }
@@ -1027,7 +1031,7 @@
       state.turn = (state.turn === 1 ? 2 : 1);
       state.breaker = (state.breaker === 1 ? 2 : 1);
     }
-    (state.log || []).forEach(e => { if (e.t === "inn") e.p = (e.p === 1 ? 2 : 1); });
+    (state.log || []).forEach(e => { if (e.t === "inn" || (e.t === "rack" && e.p)) e.p = (e.p === 1 ? 2 : 1); });
 
     save();
     render();
@@ -1144,7 +1148,16 @@
     let no = 0, rows = "";
     (state.log || []).forEach(e => {
       if (e.t === "rack") {
-        rows += '<tr class="pz-div"><td colspan="7">↻ Rack ' + e.rackNo + ' — Wiederaufbau</td></tr>';
+        const lbl = '↻ Rack ' + e.rackNo;
+        if (e.p === 1) {
+          rows += '<tr class="pz-rack"><td></td><td></td><td class="pz-rackmark">' + lbl + '</td><td></td>' +
+                  '<td class="pz-bl"></td><td></td><td></td></tr>';
+        } else if (e.p === 2) {
+          rows += '<tr class="pz-rack"><td></td><td></td><td></td><td></td>' +
+                  '<td class="pz-bl"></td><td class="pz-rackmark">' + lbl + '</td><td></td></tr>';
+        } else {
+          rows += '<tr class="pz-div"><td colspan="7">' + lbl + ' — Wiederaufbau</td></tr>';
+        }
         return;
       }
       no++;
