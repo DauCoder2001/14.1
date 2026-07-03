@@ -169,6 +169,7 @@
     min-height: 20vh;
     position: relative;
     z-index: 1;
+    transform: translateY(-20px);   /* Score-Zeile (Zahlen + Doppelpunkt) 20px hoeher */
   }
 
   .score {
@@ -202,6 +203,7 @@
     align-items: center;
     gap: 0.8vmin;
     padding: 0.8vmin 1vmin 0.5vmin 1vmin;
+    margin-bottom: 3vmin;   /* Abstand zur unteren Button-Leiste -> Baelle etwas hoeher */
     flex: 0 0 auto;
     transition: opacity 0.2s ease;
     /* Ballgroesse skaliert mit der Breite -> alle 15 passen in eine Zeile (max 9vmin) */
