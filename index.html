@@ -197,21 +197,23 @@
   /* Kugelbereich */
   #balls {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: center;
     align-items: center;
     gap: 0.8vmin;
     padding: 0.8vmin 1vmin 0.5vmin 1vmin;
     flex: 0 0 auto;
     transition: opacity 0.2s ease;
+    /* Ballgroesse skaliert mit der Breite -> alle 15 passen in eine Zeile (max 9vmin) */
+    --bs: min(9vmin, calc((100vw - 4vmin) / 15 - 0.9vmin));
   }
 
   .ball {
-    width: 9vmin;
-    height: 9vmin;
+    width: var(--bs);
+    height: var(--bs);
     border-radius: 50%;
     border: none;
-    font-size: 3vmin;
+    font-size: calc(var(--bs) * 0.34);
     font-weight: bold;
     cursor: pointer;
     user-select: none;
@@ -313,7 +315,6 @@
   @media (orientation: portrait) {
     .score { font-size: 26vmin; }
     #colon { font-size: 11vmin; }
-    .ball { width: 11vmin; height: 11vmin; font-size: 4vmin; }
     .stats { font-size: 2.3vmin; }
     button { font-size: 2.8vmin; }
   }
@@ -321,7 +322,6 @@
   /* Sehr kleine Displays */
   @media (max-height: 700px) {
     .score { font-size: 24vmin; }
-    .ball { width: 8vmin; height: 8vmin; font-size: 2.8vmin; }
     .stats { font-size: 2vmin; }
   }
 
