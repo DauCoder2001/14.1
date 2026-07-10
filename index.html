@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no, maximum-scale=1">
 <title>14.1 Scoreboard – Standalone</title>
@@ -1264,6 +1265,30 @@
   render();
   setInterval(updateClock, 1000);
   updateClock();
+</script>
+
+<script>
+  // Screen Wake Lock – haelt den Bildschirm an (Kiosk). Inline-Variante fuer das
+  // Standalone-Bundle (kein ES-Modul; vgl. js/wake-lock.js im Haupt-Repo).
+  (function () {
+    if (!('wakeLock' in navigator)) return;
+    var lock = null;
+    var acquire = function () {
+      if (lock || document.visibilityState !== 'visible') return;
+      navigator.wakeLock.request('screen').then(function (l) {
+        lock = l;
+        l.addEventListener('release', function () { lock = null; });
+      }).catch(function () { lock = null; });
+    };
+    acquire();
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') acquire();
+    });
+    ['pointerdown', 'keydown', 'touchstart'].forEach(function (ev) {
+      document.addEventListener(ev, acquire, { passive: true });
+    });
+    setInterval(acquire, 30000);
+  })();
 </script>
 </body>
 </html>
