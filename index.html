@@ -378,10 +378,14 @@
   #log-table .pz-tot { font-weight: bold; }
   #log-table .pz-f { color: #cc0000; font-weight: bold; }
   #log-table .pz-f3 { color: #a30000; font-weight: bold; }
+  #log-table .pz-s { color: #1a7a1a; font-weight: bold; }
+  #log-table .pz-v { color: #1133cc; font-weight: bold; }
   #log-table .pz-3frow { background: #fff0f0; }
   #log-table .pz-hs { background: #fff6cc; font-weight: bold; border-radius: 4px; }
   #log-table .pz-live td { background: #eef6ff; font-style: italic; }
   #log-table .pz-live .pz-no { color: #1f3b73; font-style: normal; font-weight: bold; }
+  #log-table .pz-livecell { background: #eef6ff; font-style: italic; }
+  #log-table .pz-liveno { color: #1f3b73; font-weight: bold; }
   #log-table .pz-div td { background: #e9eef6; color: #1f3b73; font-size: 12px; font-weight: bold;
     border-top: 1px solid #cfd6e2; border-bottom: 1px solid #cfd6e2; }
   #log-table .pz-rack td { border-top: 1px solid #cfd6e2; }
@@ -614,7 +618,9 @@
       <span><b class="pz-f">/</b> 1. Foul</span>
       <span><b class="pz-f">//</b> 2. Foul</span>
       <span><b class="pz-f3">3F</b> drei Fouls (−15)</span>
-      <span><b>−2</b> Eröffnungsfoul</span>
+      <span><b class="pz-f">−2</b> Eröffnungsfoul</span>
+      <span><b style="color:#1a7a1a;">S</b> Sicherheit</span>
+      <span><b style="color:#1133cc;">V</b> Verschossen</span>
       <span><b>HS</b> = Höchstserie <span class="pz-hs">(gelb markiert)</span></span>
       <span><b style="color:#1f3b73;">▶</b> laufende Aufnahme</span>
     </div>
@@ -760,7 +766,7 @@
   let history = [];   // fuer Undo
 
   function freshState() {
-    return { player1:"Spieler 1", player2:"Spieler 2", s1:0, s2:0, run1:0, run2:0,
+    return { player1:"Spieler 1", player2:"Spieler 2", s1:0, s2:0, run1:0, run2:0, rackPts:[],
              high1:0, high2:0, inn1:0, inn2:0, consec1:0, consec2:0, target:60, targetInn:20, turn:1,
              ballsLeft:15, rackNo:1, pendingRebuilds:0, phase:"break", breaker:1,
              locked:false, winnerText:"", log:[] };
@@ -819,7 +825,9 @@
     const total = (p === 1 ? state.s1 : state.s2);
     if (p === 1) { if (pkt > state.high1) state.high1 = pkt; }
     else         { if (pkt > state.high2) state.high2 = pkt; }
-    state.log.push({ t: "inn", p: p, balls: balls, pkt: pkt, total: total, mark: mark || "", kind: kind || "run" });
+    const rp = state.rackPts || [];
+    const segs = rp.concat(balls - rp.reduce((a, b) => a + b, 0));   // Punkte je Rack (letztes = offener Rest)
+    state.log.push({ t: "inn", p: p, balls: balls, pkt: pkt, total: total, mark: mark || "", kind: kind || "run", segs: segs });
   }
 
   function flushRebuilds() {
@@ -847,6 +855,7 @@
     if (state.turn === 1) state.inn1++; else state.inn2++;
     state.run1 = 0;
     state.run2 = 0;
+    state.rackPts = [];
     state.turn = (state.turn === 1 ? 2 : 1);
   }
 
@@ -864,6 +873,9 @@
     if (state.ballsLeft <= 1) {            // nur der Break-Ball liegt noch -> die 14 wieder aufbauen
       state.ballsLeft = 15;
       state.pendingRebuilds++;
+      if (!state.rackPts) state.rackPts = [];
+      const runNow = (state.turn === 1 ? state.run1 : state.run2);
+      state.rackPts.push(runNow - state.rackPts.reduce((a, b) => a + b, 0));   // abgeraeumtes Rack schliessen (Slash-Segment)
     }
     save();
     render();
@@ -904,7 +916,7 @@
       rebuildFull();
       flushRebuilds();
       if (p === 1) state.inn1++; else state.inn2++;
-      state.run1 = 0; state.run2 = 0;
+      state.run1 = 0; state.run2 = 0; state.rackPts = [];
       state.turn = 1; state.phase = "break"; state.breaker = 1;
     } else {
       logEntry(p, run, 1, consec === 1 ? "/" : "//", "foul");
@@ -949,7 +961,7 @@
     } else {
       flushRebuilds();
       if (p === 1) state.inn1++; else state.inn2++;
-      state.run1 = 0; state.run2 = 0;
+      state.run1 = 0; state.run2 = 0; state.rackPts = [];
       // Eroeffnungsstoss wird wiederholt – immer durch den roten (linken) Spieler
       state.turn = 1; state.breaker = 1; state.phase = "break";
     }
@@ -991,7 +1003,7 @@
     if (!await confirmModal("Neues Match starten? Alle aktuellen Punkte werden gelöscht!")) return;
 
     state.s1 = 0; state.s2 = 0;
-    state.run1 = 0; state.run2 = 0;
+    state.run1 = 0; state.run2 = 0; state.rackPts = [];
     state.high1 = 0; state.high2 = 0;
     state.inn1 = 0; state.inn2 = 0;
     state.consec1 = 0; state.consec2 = 0;
@@ -1148,58 +1160,66 @@
       '<div class="ls-target"><div>Ziel</div><div class="ls-tv">' + state.target + '</div></div>' +
       playerSummary(state.player2, state.s2, state.high2, state.inn2, "#1133cc", !state.locked && state.turn === 2);
 
-    let no = 0, rows = "";
+    // Aufnahmen paaren: n-te Aufnahme von Rot + n-te von Blau in EINE Zeile "Aufn. n".
+    const paired = [];
+    const rowAt = (n) => paired[n] || (paired[n] = { n: n, p1: null, p2: null, live1: null, live2: null });
+    let c1 = 0, c2 = 0;
     (state.log || []).forEach(e => {
-      if (e.t === "rack") {
-        const lbl = '↻ Rack ' + e.rackNo;
-        if (e.p === 1) {
-          rows += '<tr class="pz-rack"><td></td><td></td><td class="pz-rackmark">' + lbl + '</td><td></td>' +
-                  '<td class="pz-bl"></td><td></td><td></td></tr>';
-        } else if (e.p === 2) {
-          rows += '<tr class="pz-rack"><td></td><td></td><td></td><td></td>' +
-                  '<td class="pz-bl"></td><td class="pz-rackmark">' + lbl + '</td><td></td></tr>';
-        } else {
-          rows += '<tr class="pz-div"><td colspan="7">' + lbl + ' — Wiederaufbau</td></tr>';
-        }
-        return;
-      }
-      no++;
-      const isFoul = (e.kind === "foul" || e.kind === "foul3" || e.kind === "break");
-      const fcls = (e.kind === "foul3" || e.kind === "break") ? "pz-f3" : (e.kind === "foul" ? "pz-f" : "");
-      const pktcls = isFoul ? (fcls) : "";
-      const trcls = (e.kind === "foul3") ? ' class="pz-3frow"' : "";
-      const hs1 = (e.p === 1 && e.pkt === state.high1 && e.pkt > 0) ? " pz-hs" : "";
-      const hs2 = (e.p === 2 && e.pkt === state.high2 && e.pkt > 0) ? " pz-hs" : "";
-      if (e.p === 1) {
-        rows += '<tr' + trcls + '><td class="pz-no">' + no + '</td>' +
-          '<td class="' + fcls + '">' + (e.mark || "") + '</td>' +
-          '<td class="' + pktcls + hs1 + '">' + e.pkt + '</td>' +
-          '<td class="pz-tot">' + e.total + '</td>' +
-          '<td class="pz-bl"></td><td></td><td></td></tr>';
-      } else {
-        rows += '<tr' + trcls + '><td class="pz-no">' + no + '</td>' +
-          '<td></td><td></td><td></td>' +
-          '<td class="pz-bl ' + fcls + '">' + (e.mark || "") + '</td>' +
-          '<td class="' + pktcls + hs2 + '">' + e.pkt + '</td>' +
-          '<td class="pz-tot">' + e.total + '</td></tr>';
-      }
+      if (e.t === "rack") return;   // Rack-Grenze steht als Schraegstrich in der Punkte-Spalte
+      if (e.p === 1) rowAt(++c1).p1 = e; else rowAt(++c2).p2 = e;
     });
 
-    // Laufende (noch nicht beendete) Aufnahme als Live-Zeile
+    // Laufende (noch nicht beendete) Aufnahme in die Zeile des Spielers am Tisch.
     if (!state.locked) {
       const lp = state.turn;
-      const lrun = (lp === 1 ? state.run1 : state.run2);
-      const ltot = (lp === 1 ? state.s1 : state.s2);
-      no++;
-      if (lp === 1) {
-        rows += '<tr class="pz-live"><td class="pz-no">▶ ' + no + '</td>' +
-          '<td></td><td>' + lrun + '</td><td class="pz-tot">' + ltot + '</td>' +
-          '<td class="pz-bl"></td><td></td><td></td></tr>';
-      } else {
-        rows += '<tr class="pz-live"><td class="pz-no">▶ ' + no + '</td>' +
-          '<td></td><td></td><td></td>' +
-          '<td class="pz-bl"></td><td>' + lrun + '</td><td class="pz-tot">' + ltot + '</td></tr>';
+      const run = (lp === 1 ? state.run1 : state.run2);
+      const rp = state.rackPts || [];
+      const live = { segs: rp.concat(run - rp.reduce((a, b) => a + b, 0)), total: (lp === 1 ? state.s1 : state.s2) };
+      const ln = (lp === 1 ? c1 : c2) + 1;
+      if (lp === 1) rowAt(ln).live1 = live; else rowAt(ln).live2 = live;
+    }
+
+    // Baut die drei Zellen (F, Pkt, Gesamt) einer Spielerseite. Pkt zeigt die Slash-Notation
+    // (Punkte je Rack) bei Mehr-Rack-Aufnahmen, sonst die Einzahl.
+    const side = (e, live, isP2, high) => {
+      const bl = isP2 ? "pz-bl" : "";
+      if (e) {
+        const isFoul = (e.kind === "foul" || e.kind === "foul3" || e.kind === "break");
+        const fcls = (e.kind === "foul3") ? "pz-f3" : ((e.kind === "foul" || e.kind === "break") ? "pz-f" : "");
+        const pktcls = isFoul ? fcls : "";
+        const hs = (e.pkt === high && e.pkt > 0) ? " pz-hs" : "";
+        const val = (e.segs && e.segs.length > 1) ? e.segs.join("/") : e.pkt;
+        // F-Spalte: S = Sicherheit (gruen), V = verschossen (blau), sonst das Foul-Zeichen (rot).
+        let markTxt = e.mark || "";
+        let markCls = fcls;
+        if (e.kind === "safety") { markTxt = "S"; markCls = "pz-s"; }
+        else if (e.kind === "run") { markTxt = "V"; markCls = "pz-v"; }
+        return '<td class="' + (bl + " " + markCls).trim() + '">' + markTxt + '</td>' +
+               '<td class="' + (pktcls + hs).trim() + '">' + val + '</td>' +
+               '<td class="pz-tot">' + e.total + '</td>';
       }
+      if (live) {
+        const lval = (live.segs && live.segs.length > 1) ? live.segs.join("/") : live.segs[0];
+        return '<td class="' + bl + '"></td>' +
+               '<td class="pz-livecell">' + lval + '</td>' +
+               '<td class="pz-tot pz-livecell">' + live.total + '</td>';
+      }
+      return '<td class="' + bl + '"></td><td></td><td></td>';
+    };
+
+    let rows = "";
+    for (let n = 1; n < paired.length; n++) {
+      const r = paired[n];
+      if (!r) continue;
+      const hasLive = !!(r.live1 || r.live2);
+      const pureLive = hasLive && !r.p1 && !r.p2;
+      const foul3 = (r.p1 && r.p1.kind === "foul3") || (r.p2 && r.p2.kind === "foul3");
+      const trcls = pureLive ? ' class="pz-live"' : (foul3 ? ' class="pz-3frow"' : "");
+      const noCls = (hasLive && !pureLive) ? "pz-no pz-liveno" : "pz-no";
+      const noTxt = hasLive ? ("▶ " + n) : ("" + n);
+      rows += '<tr' + trcls + '><td class="' + noCls + '">' + noTxt + '</td>' +
+        side(r.p1, r.live1, false, state.high1) +
+        side(r.p2, r.live2, true, state.high2) + '</tr>';
     }
 
     if (!rows) rows = '<tr><td colspan="7" class="pz-empty">Noch keine Aufnahmen.</td></tr>';
